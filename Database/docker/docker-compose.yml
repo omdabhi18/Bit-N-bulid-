@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: krishinetra_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-krishinetra_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-krishinetra_secret_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-krishinetra_db}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-krishinetra_user} -d ${POSTGRES_DB:-krishinetra_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - krishinetra_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: krishinetra_redis
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - krishinetra_network
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: krishinetra_mosquitto
+    restart: always
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    environment:
+      - MOSQUITTO_ALLOW_ANONYMOUS=true
+    networks:
+      - krishinetra_network
+
+volumes:
+  pgdata:
+    driver: local
+  redisdata:
+    driver: local
+
+networks:
+  krishinetra_network:
+    driver: bridge
